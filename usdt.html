@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Check USDT BEP20 BSC</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        textarea { width: 100%; height: 180px; }
+        button { padding: 10px 20px; margin-top: 10px; }
+        #result { margin-top: 20px; white-space: pre-line; }
+        .low-balance { color: red; }
+    </style>
+</head>
+<body>
+    <h2>Kiểm tra số dư USDT (BSC)</h2>
+    <p>Nhập danh sách ví theo định dạng: <code>0x...,Tên ví</code></p>
+    <textarea id="wallets">
+0xcd85f976600B045c530230Ca118D75ec7b479Cb8,ví 1
+0xA48c97db30ddc221a9Eb98df0f9B3C7F18c785F3,ví 2
+0x71815FB363A19a9C293527d0334097b2D6d86aC1,ví 3
+0xEdaE8503105208677D9D599cd1988Aa73C69F76f,ví 4
+0xF84e23e930426848515335fCF1A243EAdCACF02a,ví 5
+0x9228180fF76e937384a1859e771C948bd1552753,ví 6
+0x67ed87620d7736DCd7FAe85D89F846E315C5A0Ea,ví 7
+    </textarea><br>
+    <button id="checkBtn">Kiểm tra</button>
+
+    <div id="result"></div>
+
+    <script>
+        const API_KEY = 'DBSURUNK6HFY93DD5VD3MM9VUXKVUPZJF6';
+        const USDT_CONTRACT = '0x55d398326f99059fF775485246999027B3197955';
+
+        async function getBalance(address) {
+            const url = `https://api.bscscan.com/api?module=account&action=tokenbalance&contractaddress=${USDT_CONTRACT}&address=${address}&tag=latest&apikey=${API_KEY}`;
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.status === "1") {
+                    return (parseFloat(data.result) / 1e18).toFixed(4);
+                } else {
+                    return "Lỗi API";
+                }
+            } catch (e) {
+                return "Lỗi mạng";
+            }
+        }
+
+        async function checkBalances() {
+            const text = document.getElementById('wallets').value;
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = "Đang kiểm tra...<br>";
+
+            for (const line of lines) {
+                const [address, name = ''] = line.split(',').map(x => x.trim());
+                if (!address.startsWith('0x') || address.length !== 42) continue;
+
+                const balanceStr = await getBalance(address);
+                const div = document.createElement('div');
+                div.textContent = `${name || 'Không tên'} (${address}): ${balanceStr} USDT`;
+
+                const balance = parseFloat(balanceStr);
+                if (!isNaN(balance) && balance < 1000) {
+                    div.classList.add('low-balance');
+                }
+
+                resultDiv.appendChild(div);
+            }
+        }
+
+        document.getElementById("checkBtn").addEventListener("click", checkBalances);
+    </script>
+</body>
+</html>
