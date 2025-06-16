@@ -12,6 +12,7 @@
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
         .low-balance { color: red; font-weight: bold; }
+        a.link-btn { text-decoration: none; color: #007bff; }
     </style>
 </head>
 <body>
@@ -63,7 +64,7 @@
             resultDiv.innerHTML = `
                 <table>
                     <thead>
-                        <tr><th>Tên ví</th><th>Địa chỉ</th><th>Số dư USDT</th></tr>
+                        <tr><th>Tên ví</th><th>Địa chỉ</th><th>Số dư USDT</th><th>Link</th></tr>
                     </thead>
                     <tbody id="result-body"></tbody>
                 </table>
@@ -81,10 +82,13 @@
                 const balance = parseFloat(balanceStr);
                 const balanceCell = `<td${!isNaN(balance) && balance < 1000 ? ' class="low-balance"' : ''}>${balanceStr}</td>`;
 
+                const linkCell = `<td><a class="link-btn" href="https://www.bn-alpha.site/${address}" target="_blank">Xem</a></td>`;
+
                 tr.innerHTML = `
                     <td>${name}</td>
                     <td>${address}</td>
                     ${balanceCell}
+                    ${linkCell}
                 `;
                 tbody.appendChild(tr);
             }
