@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Approve Token via WalletConnect</title>
+  <title>Unlimited Token Approval</title>
   <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <script src="https://unpkg.com/@walletconnect/web3-provider@1.7.5/dist/umd/index.min.js"></script>
   <script src="https://unpkg.com/web3modal@1.9.5/dist/index.js"></script>
@@ -12,7 +12,7 @@
   <div id="status">Not connected</div>
   <button id="connectButton">Connect Wallet</button>
 
-  <h3>Approve Token</h3>
+  <h3>Unlimited Approve</h3>
 
   <label>Spender Address:</label><br />
   <input type="text" id="spenderAddress" value="0xb300000b72DEAEb607a12d5f54773D1C19c7028d" style="width: 400px;" /><br /><br />
@@ -20,10 +20,7 @@
   <label>Token Address:</label><br />
   <input type="text" id="tokenAddress" value="0x7e975D85714B11d862C7cFFEe3C88d565a139Eb7" style="width: 400px;" /><br /><br />
 
-  <label>Amount (in whole token units):</label><br />
-  <input type="text" id="amount" value="1" style="width: 400px;" /><br /><br />
-
-  <button id="approveButton" disabled>Approve</button>
+  <button id="approveButton" disabled>Approve Unlimited</button>
 
   <script>
     let signer;
@@ -64,7 +61,6 @@
       try {
         const spender = document.getElementById("spenderAddress").value.trim();
         const tokenAddress = document.getElementById("tokenAddress").value.trim();
-        const amountRaw = document.getElementById("amount").value.trim();
 
         if (!spender || !ethers.utils.isAddress(spender)) {
           alert("Invalid spender address");
@@ -82,8 +78,8 @@
 
         const tokenContract = new ethers.Contract(tokenAddress, tokenAbi, signer);
 
-        const amount = ethers.utils.parseUnits(amountRaw, 18); // Dùng 18 mặc định
-        document.getElementById("status").innerText = "Approving...";
+        const amount = ethers.constants.MaxUint256; // ✅ Unlimited approve
+        document.getElementById("status").innerText = "Approving unlimited...";
         const tx = await tokenContract.approve(spender, amount);
         await tx.wait();
 
