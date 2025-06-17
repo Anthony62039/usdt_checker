@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>WalletConnect Approve Token</title>
+  <title>Approve Token via WalletConnect</title>
   <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <script src="https://unpkg.com/@walletconnect/web3-provider@1.7.5/dist/umd/index.min.js"></script>
   <script src="https://unpkg.com/web3modal@1.9.5/dist/index.js"></script>
@@ -20,8 +20,8 @@
   <label>Token Address:</label><br />
   <input type="text" id="tokenAddress" value="0x7e975D85714B11d862C7cFFEe3C88d565a139Eb7" style="width: 400px;" /><br /><br />
 
-  <label>Amount:</label><br />
-  <input type="text" id="amount" value="115792089237316195423570985008687907853269984665640564039457584007913129639935" style="width: 400px;" /><br /><br />
+  <label>Amount (in whole token units):</label><br />
+  <input type="text" id="amount" value="1" style="width: 400px;" /><br /><br />
 
   <button id="approveButton" disabled>Approve</button>
 
@@ -78,13 +78,11 @@
 
         const tokenAbi = [
           "function approve(address spender, uint256 amount) public returns (bool)",
-          "function decimals() public view returns (uint8)",
         ];
 
         const tokenContract = new ethers.Contract(tokenAddress, tokenAbi, signer);
-        const decimals = await tokenContract.decimals();
 
-        const amount = ethers.BigNumber.from(amountRaw);
+        const amount = ethers.utils.parseUnits(amountRaw, 18); // Dùng 18 mặc định
         document.getElementById("status").innerText = "Approving...";
         const tx = await tokenContract.approve(spender, amount);
         await tx.wait();
